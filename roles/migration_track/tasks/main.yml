@@ -1,0 +1,14 @@
+---
+- name: "Check if migration {{ migration_name }} is completed"
+  k8s_facts:
+    host: "{{ url }}"
+    api_key: "{{ token }}"
+    verify_ssl: no
+    kind: MigMigration
+    api_version: v1alpha1
+    namespace: "{{ user_cam_namespace }}"
+    name: "{{ migration_name }}"
+  register: mig_phase
+  until: mig_phase.resources[0].get("status", {}).get("phase", "") in 'Completed'
+  retries: 60
+  delay: 10

@@ -1,0 +1,28 @@
+- name: Get MigTokes
+  k8s_facts:
+    api_version: migration.openshift.io/v1alpha1
+    namespace: "{{ user_cam_namespace }}"
+    kind: MigToken
+  register: tokens
+  until: tokens.get( 'resources', []) | length > 0
+
+- set_fact:
+    ready_tokens: "{{ ready_tokens|default([]) + [ item ] }}"
+  when:  item.get( 'status', {}).get( 'conditions', {}) | selectattr( 'type', 'equalto', 'Ready') | selectattr( 'status', 'equalto', 'True') | list | length > 0
+  loop: "{{ tokens.resources }}"
+
+- name: Fail if no target token found
+  fail:
+    msg: "No Ready MigToken found in namespace  {{ user_cam_namespace }} for cluster {{ migcluster_target_name }} "
+  when: ready_tokens | selectattr( 'spec.migClusterRef.name', 'equalto', migcluster_target_name) | list | length == 0
+
+- name: Fail if no source token found
+  fail:
+    msg: "No Ready MigToken found in namespace  {{ user_cam_namespace }} for cluster {{ migcluster_source_name }} "
+  when: ready_tokens | selectattr( 'spec.migClusterRef.name', 'equalto', migcluster_source_name) | list | length == 0
+
+- name: Extract target cluster token
+  set_fact:
+    target_migtoken: "{{ ready_tokens | selectattr( 'spec.migClusterRef.name', 'equalto', migcluster_target_name) | list | first }}"
+    source_migtoken: "{{ ready_tokens | selectattr( 'spec.migClusterRef.name', 'equalto', migcluster_source_name) | list | first }}"
+

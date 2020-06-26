@@ -1,0 +1,18 @@
+- set_fact:
+    cid: "{{ index }}"
+
+- set_fact:
+    cid: ''
+  when: index == 0
+
+- name: Get  secret
+  k8s_info:
+    kind: Secret
+    namespace: "{{ item.spec.serviceAccountSecretRef.namespace }}"
+    name: "{{ item.spec.serviceAccountSecretRef.name }}"
+  register: secret
+  retries: 3
+
+- name: Add facts
+  set_fact:
+    cluster_info: "{{ cluster_info|default([]) + [{'url':  item.spec.url , 'token':  secret.resources[0].data.saToken | b64decode , 'name':  cluster_name + cid|string }] }}"

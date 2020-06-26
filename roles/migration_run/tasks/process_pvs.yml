@@ -1,0 +1,45 @@
+---
+- name: Check migration plan for PVs
+  k8s_facts:
+    host: "{{ url }}"
+    api_key: "{{ token }}"
+    verify_ssl: no
+    kind: MigPlan
+    api_version: v1alpha1
+    namespace: "{{ user_cam_namespace }}"
+    name: "{{ migration_plan_name }}"
+  register: mig_plan
+  until: mig_plan.resources[0].get("spec", {}).get("persistentVolumes", {})
+  retries: 30
+  delay: 5
+
+- name: Clean previous migplan information
+  set_fact:
+    modified_plan: "{{ mig_plan.resources|first }}"
+
+- name: Clean volume information and status
+  set_fact:
+    modified_plan: "{{ modified_plan | combine({'spec': {'persistentVolumes':[]}, 'status': {} }) }}"
+    migplan_vols: "{{ [] }}"
+
+- name: Modify metadata information
+  set_fact:
+    modified_plan: "{{ modified_plan | combine({ 'metadata': {'name': modified_plan.metadata.name, 'namespace': modified_plan.metadata.namespace}}) }}"
+
+- name: Calculate new volume information
+  set_fact:
+    migplan_vols: "{{ migplan_vols|default([]) + [item|combine(lookup('template', 'pv-data.yml.j2')|from_yaml)] }}"
+  loop: "{{ mig_plan.resources[0].spec.persistentVolumes }}"
+
+- name: Update new volume information
+  set_fact:
+    modified_plan: "{{ modified_plan | combine({'spec': {'persistentVolumes': migplan_vols} }) }}"
+
+- name: Update migration plan with PVs
+  k8s:
+    host: "{{ url }}"
+    api_key: "{{ token }}"
+    verify_ssl: no
+    state: present
+    definition: "{{ modified_plan }}"
+

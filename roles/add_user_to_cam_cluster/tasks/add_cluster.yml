@@ -1,0 +1,77 @@
+- name: Log in with user (obtain access token)
+  k8s_auth:
+    host: "{{ cluster_url }}"
+    username: "{{ user }}"
+    password: "{{ password }}"
+    validate_certs: no
+  register: k8s_auth_results
+  retries: 5
+  delay: 10
+  until:  not k8s_auth_results.failed
+
+- name: Create the user CAM namespace k8s
+  k8s:
+    api_key: "{{ k8s_auth_results.k8s_auth.api_key }}"
+    host: "{{ cluster_url }}"
+    validate_certs: no
+    state : present
+    definition: "{{ lookup('template', 'namespace.yml.j2' )}}"
+
+- name: Create user controller role
+  k8s:
+    api_key: "{{ cluster_admin_token }}"
+    host: "{{ cluster_url }}"
+    validate_certs: no
+    state : present
+    definition: "{{ lookup('template', 'role.yml.j2' )}}"
+
+- name: Assign role to user
+  #shell: "oc create rolebinding {{ user }}-use-migration-controller --role {{ role_name }} --user {{ user }} --namespace {{ admin_cam_namespace }}"
+  shell: "oc adm policy add-role-to-user {{ role_name }} {{ user }} --role-namespace {{ admin_cam_namespace }} -n {{ admin_cam_namespace}} --token={{ cluster_admin_token }} --server={{ cluster_url }}"
+
+
+- debug:
+   msg: "oc adm policy add-role-to-user {{ role_name }} {{ user }} --role-namespace {{ admin_cam_namespace }} -n {{ admin_cam_namespace}} --token={{ cluster_admin_token }} --server={{ cluster_url }}"
+
+
+- name: Log in with user to controller cluster (obtain access token)
+  k8s_auth:
+    host: "{{ controller_cluster.url }}"
+    username: "{{ user }}"
+    password: "{{ password }}"
+    validate_certs: no
+  register: k8s_auth_controller
+  retries: 5
+  delay: 10
+  until:  not k8s_auth_controller.failed
+
+- name: Create user secret
+  k8s:
+    host: "{{ controller_cluster.url }}"
+    api_key: "{{ k8s_auth_controller.k8s_auth.api_key }}"
+    validate_certs: no
+    state : present
+    definition: "{{ lookup('template', 'secret.yml.j2' )}}"
+  vars:
+    token: "{{ k8s_auth_results.k8s_auth.api_key }}"
+
+- name: Create user MigToken
+  k8s:
+    host: "{{ controller_cluster.url }}"
+    api_key: "{{ k8s_auth_controller.k8s_auth.api_key }}"
+    validate_certs: no
+    state : present
+    definition: "{{ lookup('template', 'token.yml.j2' )}}"
+
+- name: Wait until MigToken is ready
+  k8s_info:
+    host: "{{ controller_cluster.url }}"
+    api_key: "{{ k8s_auth_controller.k8s_auth.api_key }}"
+    validate_certs: no
+    api_version: migration.openshift.io/v1alpha1
+    kind: MigToken
+    name: "{{ user }}-{{ cluster_name }}-token"
+    namespace: "{{ user_cam_namespace }}"
+  register: migtoken
+  until: (migtoken.get('resources',[]) | length == 1) and ( (migtoken.resources|first).get( 'status', {}).get( 'conditions', {}) | selectattr( 'type', 'equalto', 'Ready') | selectattr( 'status', 'equalto', 'True') | list | length > 0)
+  retries: 20

@@ -1,0 +1,107 @@
+- name: Create user
+  block:
+  - name: Log in to check if the user already exists
+    k8s_auth:
+      host: "{{ url }}"
+      username: "{{ single_user }}"
+      password: "{{ password }}"
+      validate_certs: no
+    register: k8s_auth_results
+    retries: 2
+    until:  not k8s_auth_results.failed
+    loop: "{{ [ user ] if user is string else user }}"
+    loop_control:
+      loop_var: single_user
+
+  - name: User already exists
+    debug:
+      msg: "User {{ user }}  already exists"
+
+
+  rescue:
+  - name: Fail if our cluster is 3.x. This role can only create users in 4.x clusters. If you are in a 3x cluster, use allowall security policy.
+    fail:
+      msg: Fail, this automation is not compatible with 3.x clusters. Please, use allowall security policy in 3.x clusters.
+    when: cluster_version is version('4.1', '<')
+
+  - name: Get current authentication
+    k8s_info:
+      host: "{{ url }}"
+      api_key: "{{ admin_token }}"
+      validate_certs: no
+      api_version: config.openshift.io/v1
+      kind: OAuth
+      name: cluster
+    register: cluster_oauth
+    until: cluster_oauth.get('resources',[]) | length > 0
+    retries: 30
+
+  - name: Get identity providers
+    set_fact:
+      current_id_providers: "{{ cluster_oauth.resources[0].spec.identityProviders }}"
+      full_provider_name: "{{ provider_name }}-{{ 1000 | random | to_uuid  }}"
+
+  - name: Create password
+    shell: "openssl passwd -apr1 {{ password }}"
+    register: pass_cmd
+
+  - debug: msg={{ pass_cmd }}
+
+  - name: Generate htpass information
+    set_fact:
+      htpass_info: "{{ htpass_info|default('') +  single_user + ':' + pass_cmd.stdout + '\n'  }}"
+    loop: "{{ [ user ] if user is string else user }}"
+    loop_control:
+      loop_var: single_user
+
+  - name: Create secret
+    k8s:
+      host: "{{ url }}"
+      api_key: "{{ admin_token }}"
+      validate_certs: no
+      api_version: v1
+      definition:
+        data:
+          htpasswd: "{{ htpass_info | string | b64encode }}"
+        kind: Secret
+        metadata:
+          name: "{{ full_provider_name }}-htpasswd-secret"
+          namespace: openshift-config
+        type: Opaque
+
+
+  - name: Update authentication
+    k8s:
+      host: "{{ url }}"
+      api_key: "{{ admin_token }}"
+      validate_certs: no
+      api_version: config.openshift.io/v1
+      kind: OAuth
+      name: cluster
+      definition:
+        spec:
+          identityProviders: |
+              {{ current_id_providers + [{ 'name': full_provider_name,
+                                           'mappingMethod': 'claim',
+                                           'type': 'HTPasswd',
+                                           'htpasswd': {
+                                                'fileData': {
+                                                    'name': full_provider_name + '-htpasswd-secret'
+                                                 }
+                                            }
+                                         }] | unique }}
+    register: output
+
+  - name: Log in (obtain access token)
+    k8s_auth:
+      host: "{{ cluster_endpoint.stdout }}"
+      username: "{{ single_user }}"
+      password: "{{ password }}"
+      validate_certs: no
+    register: k8s_auth_results
+    retries: 5
+    delay: 10
+    until:  not k8s_auth_results.failed
+    loop: "{{ [ user ] if user is string else user }}"
+    loop_control:
+      loop_var: single_user

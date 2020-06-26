@@ -1,0 +1,8 @@
+# default common variables for mig-e2e roles/plays
+
+migration_namespace: openshift-migration
+user: testuser
+password: redhat
+
+user_cam_namespace: "{{ user }}-cam"
+oc_binary: "oc"

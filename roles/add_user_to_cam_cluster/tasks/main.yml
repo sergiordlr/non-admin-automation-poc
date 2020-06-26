@@ -1,0 +1,21 @@
+- name: Get Controller cluster
+  set_fact:
+    controller_cluster: "{{ cluster_info | selectattr('ishost', 'equalto', true) | first }}"
+
+- debug: msg={{ controller_cluster }}
+
+- name: Create user in all clusters
+  include_tasks: create_users.yml
+  vars:
+    admin_token: "{{ item.admin_token }}"
+    url: "{{ item.url }}"
+    cluster_version: "{{ item.version }}"
+  loop: "{{ cluster_info }}"
+
+- name: Add user to cam clustesrs
+  include_tasks: add_cluster.yml
+  vars:
+    cluster_url: "{{ item.url }}"
+    cluster_admin_token: "{{ item.admin_token }}"
+    cluster_name: "{{ item.name }}"
+  loop: "{{ cluster_info }}"

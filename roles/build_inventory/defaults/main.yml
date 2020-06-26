@@ -1,0 +1,5 @@
+controller_service_account: 'migration-controller'
+migration_namespace: 'openshift-migration'
+
+automation_helper_namespace: 'automation-helper'
+automation_helper_service_account: 'automation'

@@ -1,0 +1,6 @@
+---
+with_migrate: true
+
+migration_sample_name: "{{ namespace }}"
+migration_plan_name: "{{ migration_sample_name }}-migplan-{{ ansible_date_time.epoch }}"
+migration_name: "{{ migration_sample_name }}-mig-{{ ansible_date_time.epoch }}"

@@ -1,0 +1,36 @@
+# k8s field_selectors cannot be used for CRs, API only supports core resources
+- name: Check existing migrations for {{ migration_sample_name }}
+  k8s_facts:
+    host: "{{ url }}"
+    api_key: "{{ admin_token }}"
+    verify_ssl: no
+    api_version: v1alpha1
+    kind: MigMigration
+    namespace: "{{ user_cam_namespace }}"
+  register: all_migrations
+
+- block:
+
+  - name: Extract discovered migrations for {{ migration_sample_name }}
+    set_fact:
+      migrations_to_remove: "{{ all_migrations | json_query('resources[].metadata.name') | select('match', migration_sample_name) | list }}"
+
+  - debug:
+      msg: 
+        - "These existing migrations will be removed :"
+        - "{{ migrations_to_remove }}"
+
+  - name: Remove existing migrations for {{ migration_sample_name }}
+    k8s:
+      host: "{{ url }}"
+      api_key: "{{ admin_token }}"
+      verify_ssl: no
+      state: absent
+      api_version: v1alpha1
+      kind: MigMigration
+      namespace: "{{ user_cam_namespace }}"
+      name: "{{ item }}"
+      wait: yes
+    loop: "{{ migrations_to_remove }}"
+
+  when: "(all_migrations.get('resources',[])|length >0) and migration_sample_name in (all_migrations | json_query('resources[].metadata.name') | string )"

@@ -1,0 +1,10 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: {{ admin_cam_namespace }}
+  name: {{ role_name }}
+rules:
+- apiGroups: ["migration.openshift.io"]
+  resources: ["migrationcontrollers"]
+  resourceNames: ["migration-controller"]
+  verbs: ["use"]

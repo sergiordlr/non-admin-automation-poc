@@ -1,0 +1,26 @@
+- name: Ensure namespace {{ namespace }} is absent before continuing...
+  k8s:
+    host: "{{ url }}"
+    api_key: "{{ admin_token }}"
+    verify_ssl: no
+    name: "{{ item }}"
+    api_version: v1
+    kind: Namespace
+    state: absent
+    wait: yes
+    wait_timeout: 300
+  loop: "{{ [namespace] if namespace is string else namespace }}"
+
+- name: Ensure namespace {{ namespace }} is absent...
+  k8s_facts:
+    host: "{{ url }}"
+    api_key: "{{ admin_token }}"
+    verify_ssl: no
+    name: "{{ item }}"
+    kind: Namespace
+    api_version: v1
+  register: ns_list
+  retries: 100
+  delay: 3
+  until: ns_list.resources|length == 0
+  loop: "{{ [namespace] if namespace is string else namespace }}"

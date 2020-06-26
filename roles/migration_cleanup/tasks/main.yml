@@ -1,0 +1,10 @@
+- name: Remove existing namespace
+  import_tasks: remove_namespace.yml
+
+- name: Remove existing migrations
+  import_tasks: remove_migration.yml
+  when: with_migrate|bool
+
+- name: Remove existing migplans
+  import_tasks: remove_migplan.yml
+  when: with_migrate|bool

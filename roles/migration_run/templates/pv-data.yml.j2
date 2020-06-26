@@ -1,0 +1,19 @@
+# capacity: ## Not modified
+# name: ## Not modified
+# pvc:
+#   accessModes:     ##Not modified
+#   - ReadWriteOnce  ##Not modified
+#   name:            ##Not modified
+#   namespace: ##Not modified
+# storageClass:  ## Not modified
+# supported:     ## Not modified
+selection:
+{% if pv_action is defined %}
+  action: {{ pv_action }}
+{% endif %}
+{% if pv_copy_method is defined %}
+  copyMethod: {{ pv_copy_method }}
+{% endif %}
+{% if dst_storage_class is defined %}
+  storageClass: {{ dst_storage_class }}
+{% endif %}

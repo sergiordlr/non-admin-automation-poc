@@ -1,0 +1,14 @@
+apiVersion: migration.openshift.io/v1alpha1
+kind: MigMigration
+metadata:
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: {{ migration_name_stage }}
+  namespace: {{ user_cam_namespace }}
+spec:
+  stage: true
+  quiescePods: false
+  migPlanRef:
+    name: {{ migration_plan_name }}
+    namespace: {{ user_cam_namespace }}
+

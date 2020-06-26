@@ -1,0 +1,68 @@
+- name: Get  secret
+  k8s_info:
+    kind: Secret
+    namespace: "{{ item.spec.serviceAccountSecretRef.namespace }}"
+    name: "{{ item.spec.serviceAccountSecretRef.name }}"
+  register: secret
+  retries: 3
+
+- name: Get remote automation helper service account
+  block:
+  - name: Get remote admin automation helper account
+    k8s_info:
+      host:  "{{ item.spec.url }}"
+      api_key: "{{ secret.resources[0].data.saToken | b64decode }}"
+      validate_certs: no
+      kind: ServiceAccount
+      namespace: "{{ automation_helper_namespace }}"
+      name: "{{ automation_helper_service_account }}"
+    register: account_info
+    retries: 1
+    until: account_info.get('resources',[]) | length == 1
+
+  - name: Get the name of the remote admin account token secret
+    set_fact:
+      token_secret: "{{ account_info.resources[0].secrets | selectattr('name', 'search', 'token') | map(attribute='name')| join  }}"
+
+  - name: Get the remote secret's information
+    k8s_info:
+      host:  "{{ item.spec.url }}"
+      api_key: "{{ secret.resources[0].data.saToken | b64decode }}"
+      validate_certs: no
+      kind: Secret
+      namespace: "{{ automation_helper_namespace }}"
+      name: "{{ token_secret }}"
+    register: secret_info
+
+  - name: Set token
+    set_fact:
+      helper_token: "{{ secret_info.resources[0].data.token|b64decode }}"
+  rescue:
+  - name: No automation helper account found. Using cam controller migration account
+    set_fact:
+      helper_token: "{{ secret.resources[0].data.saToken | b64decode}}"
+
+- name: Get user token
+  block:
+  - name: Log in with user to (obtain access token)
+    k8s_auth:
+      host:  "{{ item.spec.url }}"
+      username: "{{ user }}"
+      password: "{{ password }}"
+      validate_certs: no
+    register: user_auth_results
+    retries: 5
+    delay: 10
+    until:  not user_auth_results.failed
+
+  - name: Set token
+    set_fact:
+      user_token: "{{ user_auth_results.k8s_auth.api_key }}"
+  rescue:
+  - name: No user defined, configurint the migration-controller service account token
+    set_fact:
+      user_token: "{{secret.resources[0].data.saToken | b64decode}}"
+
+- name: Add facts
+  set_fact:
+    cluster_info: "{{ cluster_info|default([]) + [{'url':  item.spec.url , 'admin_token': helper_token, 'token': user_token  , 'name':  item.metadata.name }] }}"

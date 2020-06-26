@@ -1,0 +1,39 @@
+apiVersion: migration.openshift.io/v1alpha1
+kind: MigPlan
+metadata:
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: {{ migration_plan_name }}
+  namespace: {{ user_cam_namespace }}
+spec:
+
+  srcMigClusterRef:
+    name: {{ migcluster_source_name }}
+    namespace: {{ migration_namespace }}
+
+{% if source_migtoken is defined  %}
+  srcMigTokenRef:
+    name: {{ source_migtoken.metadata.name }}
+    namespace: {{ source_migtoken.metadata.namespace }}
+{% endif %}
+
+  destMigClusterRef:
+    name: {{ migcluster_target_name }}
+    namespace: {{ migration_namespace }}
+
+{% if target_migtoken is defined  %}
+  destMigTokenRef:
+    name: {{ target_migtoken.metadata.name }}
+    namespace: {{ target_migtoken.metadata.namespace }}
+{% endif %}
+
+  migStorageRef:
+    name: {{ migstorage_name }}
+    namespace: {{ migration_namespace }}
+
+  # [!] Change namespaces to adjust which OpenShift namespaces should be migrated from source to destination cluster
+{% if namespace is string %}
+  namespaces: [ {{ namespace }} ]
+{% else %}
+  namespaces: {{ namespace | to_yaml }}
+{% endif %}

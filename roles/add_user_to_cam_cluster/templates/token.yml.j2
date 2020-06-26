@@ -1,0 +1,13 @@
+apiVersion: migration.openshift.io/v1alpha1
+kind: MigToken
+metadata:
+  name: {{ user }}-{{ cluster_name }}-token
+  namespace: {{ user_cam_namespace }}
+spec:
+  secretRef:
+    name: {{ user }}-{{ cluster_name }}-token-secret
+    namespace: {{ user_cam_namespace }}
+  migClusterRef:
+    name: {{ cluster_name }}
+    namespace: openshift-migration
+

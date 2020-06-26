@@ -1,0 +1,133 @@
+- name: Get cluster endpoint
+  shell:  oc config view --minify -o jsonpath='{.clusters[*].cluster.server}'
+  register: cluster_endpoint
+  retries: 5
+
+- debug: msg={{ cluster_endpoint.stdout }}
+
+- name: Get current user token
+  shell:  oc whoami -t
+  register: current_token
+  retries: 5
+
+- name: Set cluster url
+  set_fact:
+    host_cluster_token: "{{ current_token.stdout }}"
+    host_cluster_url: "{{ cluster_endpoint.stdout }}"
+    host_cluster_name: "host"
+
+- name: Get all MigClusters
+  k8s_info:
+    api_version: migration.openshift.io/v1alpha1
+    kind: MigCluster
+    namespace: "{{ migration_namespace }}"
+  register: mig_clusters
+
+- name: Get all secrets
+  k8s_info:
+    kind: Secret
+    namespace: "{{ item.spec.serviceAccountSecretRef.namespace }}"
+    name: "{{ item.spec.serviceAccountSecretRef.name }}"
+  register: secrets
+  when: not item.spec.isHostCluster
+  loop: "{{ mig_clusters.resources }}"
+
+- name: Get cam service account info
+  k8s_info:
+    kind: ServiceAccount
+    namespace: "{{ migration_namespace }}"
+    name: "{{ controller_service_account }}"
+  register: account_info
+
+- name: Get the name of the account token secret
+  set_fact:
+    token_secret: "{{ account_info.resources[0].secrets | selectattr('name', 'search', 'token') | map(attribute='name')| join  }}"
+
+- name: Get the secret's information
+  k8s_info:
+    kind: Secret
+    namespace: "{{ migration_namespace }}"
+    name: "{{ token_secret }}"
+  register: secret_info
+
+
+- name: Initialize clusters info with host cluster info
+  set_fact:
+    cluster_info: "{{ [{'url': host_cluster_url, 'name': host_cluster_name, 'token': secret_info.resources[0].data.token|b64decode, 'ishost': true, 'admin_token': host_cluster_token }] }}"
+
+    host_cluster_url: "{{ cluster_endpoint.stdout }}"
+    host_cluster_name: "host"
+
+- name: Calculate clusters
+  include_tasks: calculate_migcluster_facts.yml
+  loop: "{{ mig_clusters.resources }}"
+  loop_control:
+    index_var: index
+  when: not item.spec.isHostCluster
+
+- name: Calculate versions
+  include_tasks: calculate_versions.yml
+  loop: "{{ cluster_info }}"
+  loop_control:
+    index_var: index
+
+#- debug: msg={{ cluster_info }}
+
+- name: Get python interpreter
+  shell: which python
+  register: python_which
+
+- name: Get Replication Repositories
+  k8s_facts:
+    api_version: migration.openshift.io/v1alpha1
+    kind: MigStorage
+    namespace: "{{ migration_namespace }}"
+  register: mig_storage
+  until: mig_storage.get( 'resources', []) | length > 0
+
+- name: Add clusters to invetory
+  add_host:
+    ansible_connection: local
+    name: "{{ item.name }}"
+    ishost: "{{ item.ishost|default(false) }}"
+    url: "{{ item.url }}"
+    token: "{{ item.token }}"
+    admin_token: "{{ item.admin_token }}"
+    groups: "{{ 'host_clusters' if item.ishost|default(false) else 'source_clusters' }}"
+    ansible_python_interpreter: "{{python_which.stdout}}"
+ #args: "{{ item }}"
+  loop: "{{ cluster_info }}"
+
+- set_fact:
+    controller_cluster: "{{ groups['host_clusters']|first }}"
+    target_cluster: "{{ groups['host_clusters']|first }}"
+  when: groups.get('host_clusters',[]) | length == 1
+
+- set_fact:
+    source_cluster: "{{ groups['source_clusters']|first }}"
+  when: groups.get('source_clusters',[]) | length == 1
+
+- add_host:
+    name: "{{ target_cluster }}"
+    groups: 'target_cluster'
+
+- add_host:
+    name: "{{ source_cluster }}"
+    groups: 'source_cluster'
+
+- add_host:
+    name: "{{ controller_cluster }}"
+    groups: 'controller_cluster'
+
+- set_fact:
+    migcluster_target_name: "{{ target_cluster }}"
+    migcluster_source_name: "{{ source_cluster }}"
+    migstorage_name: "{{ (mig_storage.resources|first).metadata.name }}"
+  delegate_to: "{{ item }}"
+  delegate_facts: true
+  loop: "{{ groups.all }}"
+
+- debug: var=[groups]
+  run_once: true
+- debug: var=[hostvars]
+  run_once: true

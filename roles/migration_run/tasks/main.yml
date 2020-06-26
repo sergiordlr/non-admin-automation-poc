@@ -1,0 +1,69 @@
+- name: Get MitTokens
+  include_tasks: get_migtokens.yml
+  when: user is defined
+
+- name: Create migration plan
+  k8s:
+    state: present
+    definition: "{{ lookup('template', 'mig-plan.yml.j2') }}"
+
+- debug:
+    msg: "Created migration plan : {{ migration_plan_name }}"
+
+- name: Process PVs
+  import_tasks: process_pvs.yml
+  when: pv|default(false)|bool == true
+
+# Fix me: https://github.com/konveyor/mig-controller/issues/84
+- name: Allow velero to reconcile changes before attempting migration
+  pause:
+    seconds: "{{ mig_velero_timeout }}"
+  when: mig_velero_pause is not defined
+
+- set_fact:
+    mig_velero_pause: true
+
+- name: Warnings must be present. Waiting for warnings.
+  k8s_facts:
+    host: "{{ url }}"
+    api_key: "{{ token }}"
+    verify_ssl: no
+    kind: MigPlan
+    api_version: v1alpha1
+    namespace: "{{ user_cam_namespace }}"
+    name: "{{ migration_plan_name }}"
+  register: mig_plan
+  until: mig_plan.resources|length > 0 and (mig_plan.resources[0].get( 'status', {}).get("conditions", {}) | selectattr( 'category', 'match', 'Warn|Critical') | list | length > 0)
+  retries: 30
+  delay: 5
+  when: wait_for_warnings|bool
+
+- name: Get plan information when ready
+  k8s_facts:
+    host: "{{ url }}"
+    api_key: "{{ token }}"
+    verify_ssl: no
+    kind: MigPlan
+    api_version: v1alpha1
+    namespace: "{{ user_cam_namespace }}"
+    name: "{{ migration_plan_name }}"
+  register: mig_plan
+  until: mig_plan.resources|length > 0 and (mig_plan.resources[0].get( 'status', {}).get("conditions", {}) | selectattr( 'type', 'equalto', 'Ready') | selectattr( 'status', 'equalto', 'True') | list | length > 0)
+  retries: 10
+  delay: 5
+
+- name: Expose migplan fact
+  set_fact:
+    fact_migrated_plan: "{{ mig_plan.resources | first }}"
+
+- name: Process staged migration phase
+  import_tasks: stage.yml
+  when: stage|default(false)|bool == true
+
+- name: Execute migration
+  k8s:
+    state: present
+    definition: "{{ lookup('template', 'mig-migration.yml.j2') }}"
+
+- debug:
+    msg: "Created migration name : {{ migration_name }}"

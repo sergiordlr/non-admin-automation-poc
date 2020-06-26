@@ -1,0 +1,8 @@
+- name: Create resources
+  import_tasks: deploy.yml
+  when: with_deploy|bool
+
+- name: Validate source
+  import_tasks: validate.yml
+  when: with_validate|bool
+

@@ -1,0 +1,19 @@
+---
+
+- set_fact:
+    migration_name_stage: "{{ migration_name + '-stage-phase' }}"
+
+- name: Execute stage migration
+  k8s:
+    host: "{{ url }}"
+    api_key: "{{ token }}"
+    verify_ssl: no
+    state: present
+    definition: "{{ lookup('template', 'mig-migration-stage.yml.j2') }}"
+
+- debug:
+    msg: "Created stage migration name : {{ migration_name_stage }}"
+
+- include_role:
+    name: migration_track
+    tasks_from: track_stage.yml
