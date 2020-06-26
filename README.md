@@ -37,7 +37,7 @@ Create the user, the user's namespace and the migration tokens for all the clust
 User's namespace for cam will be `{{user}}-cam`. The MigTokens will be created inside this namespace
 
 ``` 
-# Default use is `testuser`. You can -e user=myuser -e password=mypass to use any other user/pass
+# Default user is `testuser`. You can -e user=myuser -e password=mypass to use any other user/pass
 ansible-playbook install_cam_for_user.yml -e @config/defaults.yml
 ``` 
 
@@ -50,7 +50,7 @@ Then migrate the application and verify that the application was migrated proper
 
 
 ``` 
-# Default use is `testuser`. You can -e user=myuser -e password=mypass to use any other user/pass
+# Default user is `testuser`. You can -e user=myuser -e password=mypass to use any other user/pass
 ansible-playbook ocp-24997-confmap.yml -e @config/defaults.yml
 ``` 
 
