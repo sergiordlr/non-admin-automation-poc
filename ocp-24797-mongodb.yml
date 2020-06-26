@@ -1,0 +1,33 @@
+- hosts: localhost
+  roles:
+    - { role: build_inventory, tags: ["always"] }
+- hosts: all
+  tasks:
+  - set_fact:
+      namespace: ocp-24797-mongodb
+
+- name: Clean All
+  hosts: all
+  roles:
+    - role: migration_cleanup
+
+- name: Deploy Application In Source Cluster
+  hosts: "source_cluster"
+  roles:
+    - role: ocp-24797-mongodb
+      vars:
+        with_deploy: true
+        with_validate_source: true
+
+- name: Execute Migration
+  hosts: "controller_cluster"
+  roles:
+    - role: migration_run
+    - role: migration_track
+
+- name: Validate Mirated Application in Target Cluster
+  hosts: "target_cluster"
+  roles:
+    - role: ocp-24797-mongodb
+      vars:
+        with_validate_target: true

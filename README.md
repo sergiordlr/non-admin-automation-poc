@@ -117,3 +117,21 @@ url: The url to access this openshift
 token: The token that authenticates the user in this host
 
 admin_token: The token that has admin permissions in this host (this token will be migration-controller SA in source-clusters). If migration-controller SA is not enough, it will look for a helper SA. If this helper SA exists then it will use it.
+
+
+## Extra test
+
+Mongodb migration test has been added to this POC. The migration fais because of a problem with the PVC.
+
+```
+exception: connect failed
+2020-06-26T15:09:50.903+0000 E STORAGE  [initandlisten] WiredTiger error (1) [1593184190:903481][25:0x7f362605ab80], file:WiredTiger.wt, connection: /var/lib/mongodb/data/WiredTiger.wt: handle-open: open: Operation not permitted
+
+```
+
+To run the mongodb test:
+
+``` 
+# Default user is `testuser`. You can -e user=myuser -e password=mypass to use any other user/pass
+ansible-playbook ocp-24797-mongodb.yml -e @config/defaults.yml
+``` 

@@ -1,0 +1,15 @@
+- name: Check namespace
+  k8s_facts:
+    host: "{{ url }}"
+    api_key: "{{ admin_token }}"
+    verify_ssl: no
+    kind: Namespace
+    name: "{{ namespace }}"
+  register: ns
+
+- name: Create namespace
+  shell: "{{ oc_binary }} new-project {{ namespace }} --server {{ url }} --token {{ token }} --skip-config-write=true"
+  when: ns.resources | length == 0
+
+- name: Create openshift mongodb application from openshift templates
+  shell: "{{ oc_binary }} --server {{ url }} --token {{ token }} -n {{ namespace }} new-app --template mongodb-persistent -p MONGODB_USER={{ mongodb_user }} -p MONGODB_PASSWORD={{ mongodb_pass }} -p MONGODB_VERSION={{ mongodb_version }}"
