@@ -121,7 +121,7 @@ admin_token: The token that has admin permissions in this host (this token will 
 
 ## Extra test
 
-Mongodb migration test has been added to this POC. The migration fais because of a problem with the PVC.
+Mongodb migration test has been added to this POC. The migration fails because of a problem with the PVC migration.
 
 ```
 exception: connect failed
