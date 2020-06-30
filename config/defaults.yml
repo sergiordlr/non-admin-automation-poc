@@ -4,5 +4,19 @@ migration_namespace: openshift-migration
 user: testuser
 password: redhat
 
+# Namespace where the MigTokens for the user can be found, and where the MigPlan will be created.
 user_cam_namespace: "{{ user }}-cam"
-oc_binary: "oc"
+
+# 3.7 clusters will not work with a newer 'oc' version, so we need to specify a oc binary for this version.
+oc_37: "{{ oc37|default('error, no oc binary set for 3.7 openshift') }}"
+
+# 3.9 clusters will mostly work with newer 'oc' versions, but there can be problems when deploying templates if we do not use a 3.9 'oc' binary.
+oc_39: "{{ oc39|default('oc') }}"
+
+# The rest of the versions will work fine no matter the version of the 'oc' binary. Their path can be configured in the next map, though.
+oc_binary_map:
+  'default': 'oc'
+  '3.7': "{{ oc_37 }}"
+  '3.9': "{{ oc_39 }}"
+
+oc_binary: "{{ oc_binary_map.get(cluster_version, oc_binary_map.get('default')) }}"
