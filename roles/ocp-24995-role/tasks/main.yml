@@ -1,3 +1,8 @@
+- debug:
+    msg: "Using {{ role_api }} Role api endpoint"
+- debug:
+    msg: "Using {{ rolebinding_api }} RoleBinding api endpoint"
+
 - name: Create resources
   import_tasks: deploy.yml
   when: with_deploy|bool
@@ -5,4 +10,3 @@
 - name: Validate source
   import_tasks: validate.yml
   when: with_validate_source|bool or with_validate_target|bool
-

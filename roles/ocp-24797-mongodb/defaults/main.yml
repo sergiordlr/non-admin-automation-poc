@@ -7,5 +7,3 @@ mongodb_version: latest
 with_deploy: false
 with_validate_source: false
 with_validate_target: false
-pv: false
-quiesce: false

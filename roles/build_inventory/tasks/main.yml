@@ -71,7 +71,7 @@
   loop_control:
     index_var: index
 
-#- debug: msg={{ cluster_info }}
+# - debug: msg={{ cluster_info }}
 
 - name: Get python interpreter
   shell: which python
@@ -89,6 +89,7 @@
   add_host:
     ansible_connection: local
     name: "{{ item.name }}"
+    cluster_version: "{{item.version}}"
     ishost: "{{ item.ishost|default(false) }}"
     url: "{{ item.url }}"
     token: "{{ item.token }}"

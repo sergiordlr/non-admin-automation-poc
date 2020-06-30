@@ -135,3 +135,19 @@ To run the mongodb test:
 # Default user is `testuser`. You can -e user=myuser -e password=mypass to use any other user/pass
 ansible-playbook ocp-24797-mongodb.yml -e @config/defaults.yml
 ``` 
+
+## Wrapper
+
+Added the idead of a common test wrapper with a common structure:
+
+- Deploy test in source cluster
+- Validate test in source cluster
+- Execute migration in controller cluster with everything by default
+- Validate test in target cluster
+
+
+For instance for ocp-24995-role testcase
+
+```
+ansible-playbook test_common_wrapper.yml -e test=ocp-24995-role -e @config/defaults.yml
+```

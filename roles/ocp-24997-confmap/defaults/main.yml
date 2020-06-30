@@ -3,11 +3,6 @@ namespace: ocp-24997-confmap
 confmap_name: redis-config
 app_name: redis
 
-migration_sample_name: ocp-24997-confmap
-migration_plan_name: "{{ migration_sample_name }}-migplan-{{ ansible_date_time.epoch }}"
-migration_name: "{{ migration_sample_name }}-mig-{{ ansible_date_time.epoch }}"
-#migration_sample_files: "{{ playbook_dir }}/mig-controller/docs/scenarios/{{ migration_sample_name }}"
 with_deploy: false
-with_validate: false
-pv: false
-quiesce: true
+with_validate_source: false
+with_validate_target: false

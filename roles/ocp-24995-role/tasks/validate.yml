@@ -1,0 +1,25 @@
+- name: Check Role
+  k8s_facts:
+    host: "{{ url }}"
+    api_key: "{{ token }}"
+    verify_ssl: no
+    api_version: "{{ role_api }}"
+    kind: Role
+    namespace: "{{ namespace }}"
+    name: "{{ rolename }}"
+  register: rolename
+  until: rolename.resources | length > 0
+  retries: 30
+
+- name: Check RoleBinding
+  k8s_facts:
+    host: "{{ url }}"
+    api_key: "{{ token }}"
+    verify_ssl: no
+    api_version: "{{ rolebinding_api }}"
+    kind: RoleBinding
+    name: "{{ rolebinding_name }}"
+    namespace: "{{ namespace }}"
+  register: role_binding
+  until: role_binding.resources | length > 0
+  retries: 30
