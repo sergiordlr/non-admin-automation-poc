@@ -138,7 +138,7 @@ ansible-playbook ocp-24797-mongodb.yml -e @config/defaults.yml
 
 ## Wrapper
 
-Added the idead of a common test wrapper with a common structure:
+Added the idea of a common test wrapper with a common structure:
 
 - Deploy test in source cluster
 - Validate test in source cluster
@@ -151,3 +151,13 @@ For instance for ocp-24995-role testcase
 ```
 ansible-playbook test_common_wrapper.yml -e test=ocp-24995-role -e @config/defaults.yml
 ```
+
+## OC Binary
+
+We can use a different `oc` binary for each cluster.
+
+It can be configured in `config/defaults.yml` file.
+
+3.7 clusters and 3.9 clusters can use `-e oc37=/path/to/oc37` and `-e oc39=/path/to/oc39`
+
+It is mandatory to configure a 3.7 binary if we want to use a 3.7 cluster. Since 3.7 clusters are not compatible with newer versions of `oc`.
