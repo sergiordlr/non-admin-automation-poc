@@ -16,7 +16,7 @@
 
 - set_fact:
     cluster_version: "{{ cluster_version|replace('\"', '') }}"
-    new_item: "{{ item | combine({'version': cluster_version}) }}"
+    new_item: "{{ item | combine({'version': cluster_version|replace('\"', '')}) }}"
 
 - set_fact:
     cluster_info: "{{ cluster_info | difference([item]) + [new_item] }}"

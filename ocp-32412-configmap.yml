@@ -4,7 +4,7 @@
 - hosts: all
   tasks:
   - set_fact:
-      namespace: ocp-24997-confmap
+      namespace: ocp-32412-configmap
 
 - name: Clean All
   hosts: all
@@ -14,7 +14,7 @@
 - name: Deploy Application In Source Cluster
   hosts: "source_cluster"
   roles:
-    - role: ocp-24997-confmap
+    - role: ocp-configmap
       vars:
         with_deploy: true
         with_validate_source: true
@@ -28,6 +28,6 @@
 - name: Validate Mirated Application in Target Cluster
   hosts: "target_cluster"
   roles:
-    - role: ocp-24997-confmap
+    - role: ocp-configmap
       vars:
         with_validate_target: true

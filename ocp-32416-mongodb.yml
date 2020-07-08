@@ -4,7 +4,7 @@
 - hosts: all
   tasks:
   - set_fact:
-      namespace: ocp-24797-mongodb
+      namespace: ocp-32416-mongodb
 
 - name: Clean All
   hosts: all
@@ -14,7 +14,7 @@
 - name: Deploy Application In Source Cluster
   hosts: "source_cluster"
   roles:
-    - role: ocp-24797-mongodb
+    - role: ocp-mongodb
       vars:
         with_deploy: true
         with_validate_source: true
@@ -28,6 +28,6 @@
 - name: Validate Mirated Application in Target Cluster
   hosts: "target_cluster"
   roles:
-    - role: ocp-24797-mongodb
+    - role: ocp-mongodb
       vars:
         with_validate_target: true
