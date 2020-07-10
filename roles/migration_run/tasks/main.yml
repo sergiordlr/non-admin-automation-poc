@@ -56,6 +56,10 @@
   set_fact:
     fact_migrated_plan: "{{ mig_plan.resources | first }}"
 
+- name: Validate default values
+  import_tasks: validate-defaults.yml
+  when: (not pv|default(false)|bool) and validate_defaults|default(false)|bool
+
 - name: Process staged migration phase
   import_tasks: stage.yml
   when: stage|default(false)|bool == true

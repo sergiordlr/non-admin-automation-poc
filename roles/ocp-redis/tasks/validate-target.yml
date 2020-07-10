@@ -1,0 +1,50 @@
+- name: Check redis pod status
+  k8s_facts:
+    host: "{{ url }}"
+    api_key: "{{ token }}"
+    verify_ssl: no
+    kind: Pod
+    namespace: "{{ namespace }}"
+    label_selectors: "name=redis"
+    field_selectors: 
+    - status.phase=Running
+  register: pod
+  until: "pod.resources|length >0 and (true in (pod | json_query('resources[].status.containerStatuses[].ready')))"
+  retries: 90
+  delay: 3
+
+- name: Retrieve and validate previously inserted data
+  shell: "{{ oc_binary }} --server {{ url }} --token {{ token }} -n {{ namespace }} exec {{ (pod.resources|first).metadata.name }} -- /bin/bash -c \"redis-cli -a {{ redis_password }} get mytestkey\""
+  register: output
+  until: output.rc == 0 and output.stdout != ''
+  delay: 10
+  retries: 12
+
+- fail:
+    msg: "Previously inserted data not present"
+  when: not (output.stdout is search("Hello world"))
+
+- name: Copy new redis provision script to pod
+  shell: "{{ oc_binary }} --server {{ url }} --token {{ token }} -n {{ namespace }} cp {{ role_path }}/files/redis-2.cmds {{ (pod.resources|first).metadata.name }}:/tmp/redis-2.cmds"
+  register: result
+  delay: 10
+  retries: 12
+  until: result.rc == 0
+
+- name: Load new data in redis
+  shell: "{{ oc_binary }} --server {{ url }} --token {{ token }} -n {{ namespace }} exec {{ (pod.resources|first).metadata.name }} -- /bin/bash -c \"redis-cli -a {{ redis_password }} < /tmp/redis-2.cmds\""
+  register: output
+  until: output.rc == 0 and output.stdout != ''
+  delay: 10
+  retries: 12
+
+- name: Retrieve and validate new inserted data
+  shell: "{{ oc_binary }} --server {{ url }} --token {{ token }} -n {{ namespace }} exec {{ (pod.resources|first).metadata.name }} -- /bin/bash -c \"redis-cli -a {{ redis_password }} hget user:1000 username\""
+  register: output
+  until: output.rc == 0 and output.stdout != ''
+  delay: 10
+  retries: 12
+
+- fail:
+    msg: "New inserted data not present"
+  when: not (output.stdout is search("aftermiguser"))

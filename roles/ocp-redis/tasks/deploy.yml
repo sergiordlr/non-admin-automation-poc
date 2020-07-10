@@ -1,0 +1,15 @@
+- name: Check namespace
+  k8s_facts:
+    host: "{{ url }}"
+    api_key: "{{ admin_token }}"
+    verify_ssl: no
+    kind: Namespace
+    name: "{{ namespace }}"
+  register: ns
+
+- name: Create namespace
+  shell: "{{ oc_binary }} --server {{ url }} --token {{ token }} new-project {{ namespace }} --skip-config-write=true"
+  when: ns.resources | length == 0
+
+- name: Create openshift redis application from openshift templates
+  shell: "{{ oc_binary }} --server {{ url }} --token {{ token }}  -n {{ namespace }} new-app --template redis-persistent -p REDIS_PASSWORD={{ redis_password }} -p REDIS_VERSION={{ redis_version }}"

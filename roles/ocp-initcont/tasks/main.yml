@@ -1,7 +1,11 @@
+#- name: Get oc facts
+#  include_role:
+#    name: migration_getfacts
+
 - name: Create resources
   import_tasks: deploy.yml
   when: with_deploy|bool
 
-- name: Validate source
+- name: Validate migration
   import_tasks: validate.yml
   when: with_validate_source|bool or with_validate_target|bool

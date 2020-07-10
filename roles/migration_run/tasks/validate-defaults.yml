@@ -1,0 +1,94 @@
+- name: Exposed migrated plan
+  debug: msg={{fact_migrated_plan}}
+
+- name: Get storage classes info
+  k8s_facts:
+    kind: StorageClass
+  register: storage_classes
+  until: storage_classes.resources[0]  | length > 0
+
+- name: Reset ceph facts
+  set_fact:
+    csi_cephfs_installed: False
+    csi_rbd_installed: False
+
+- name: Get ceph ceph fs class name
+  set_fact:
+    csi_cephfs: "{{ item.metadata.name }}"
+    csi_cephfs_installed: True
+  when: item.provisioner is match( '.*cephfs.csi.ceph.com')
+  loop: "{{ storage_classes.resources }}"
+
+- name: Get ceph rbd class name
+  set_fact:
+    csi_rbd: "{{ item.metadata.name }}"
+    csi_rbd_installed: True
+  when: item.provisioner is match( '.*rbd.csi.ceph.com')
+  loop: "{{ storage_classes.resources }}"
+
+- name: Is ceph installed
+  set_fact:
+     ceph_installed: "{{ csi_rbd_installed|bool and csi_cephfs_installed|bool }}"
+
+#TODO: guess the classes properly
+# We cannot guess which are the glusterfs scs because we cannot access ocp source here.
+- name: Define glusterfs storage classes
+  set_fact:
+    glusterfs_scs: " {{ ['glusterfs-storage', 'glusterfs-storage-block'] }}"
+    glusterfs_move_allowed: " {{ ['glusterfs-storage'] }}"
+
+# We cannot check witch classes are nfs because we have no access to source cluster here, we assume that nfs class will be named "nfs"
+- name: Define nfs storage classes
+  set_fact:
+    nfs_scs: " {{ ['nfs'] }}"
+    # External nfs provides is deployed with empty storage class name
+    nfs_scs_move_allowed: " {{ [''] }}"
+
+- name: Check if there are volumes with with wrong default values and retreive them
+  set_fact:
+    storage_classes_fail: "{{ storage_classes_fail|default([]) + [item] if (item.storageClass is defined) and (item.storageClass in (glusterfs_scs + nfs_scs)) and  ( ( 'ReadWriteMany' not in item.pvc.accessModes and  item.selection.storageClass != csi_rbd) or ( 'ReadWriteMany' in item.pvc.accessModes and  item.selection.storageClass != csi_cephfs) ) else [] }}"
+  when:  ceph_installed
+  loop: "{{ fact_migrated_plan.spec.get('persistentVolumes', []) }}"
+
+- fail:
+    msg: "Wrong default storage class for {{ item.pvc.name }} in migplan {{ migration_plan_name }}"
+  # If pv:true, it means that the class was forced, and not selected by default
+  when:  ceph_installed and not (pv|bool)
+  loop: "{{ storage_classes_fail }}"
+
+
+- name: Extract ceph warnings
+  set_fact:
+    ceph_warns: "{{ fact_migrated_plan.status.get('conditions', {}) | list | selectattr( 'type', 'equalto', 'PvWarnNoCephAvailable') | selectattr( 'category', 'equalto', 'Warn') | list }}"
+ 
+- debug:
+    msg: "Ceph warnings: {{ceph_warns}}"
+  when: ceph_warns is defined
+ 
+- fail:
+    msg: "Ceph is not installed, but the storageclass {{ item.storageClass }} for {{ item.pvc.name }} volume in migplan {{ migration_plan_name }} has no warning. There should be a warnig."
+  when:  not ceph_installed and item.storageClass is defined and item.storageClass in (glusterfs_scs) and ( ceph_warns|length != 1 or not item.name in ceph_warns[0].message )
+  loop: "{{ fact_migrated_plan.spec.get('persistentVolumes', []) }}"
+
+- name: Get all warnings
+  set_fact:
+    all_warns: "{{ fact_migrated_plan.status.get('conditions', {}) | list | selectattr( 'category', 'equalto', 'Warn') | rejectattr( 'type', 'equalto', 'PvWarnNoCephAvailable')  | list }}"
+
+- name: Remove ceph warning if ceph not isntalled and there are gluster or nfs classes
+  set_fact:
+    all_warns: "{{ all_warns | rejectattr( 'type', 'equalto', 'PvWarnNoCephAvailable')  | list }}"
+  when:  not ceph_installed and item.storageClass is defined and item.storageClass in (glusterfs_scs) and ( ceph_warns|length != 1 or not item.name in ceph_warns[0].message )
+  loop: "{{ fact_migrated_plan.spec.get('persistentVolumes', []) }}"
+
+- name: There are warnings!
+  fail:
+    msg: "Warnings were found: {{all_warns}}"
+  when: all_warns|length > 0 and no_warnings_allowed|bool
+
+#- name: Validate default actions
+#  fail:
+#    msg: storage 
+#  when: |>
+#       'copy' not in item.get('supported',[]).get('actions') or
+#       ('move' in item.get('supported',[]).get('actions') and item.storageClass not in (glusterfs_move_allowed + nfs_scs_move_allowed))
+#  loop: "{{ fact_migrated_plan.spec.get('persistentVolumes', []) }}"

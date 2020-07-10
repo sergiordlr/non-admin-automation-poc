@@ -1,0 +1,13 @@
+app_name: mysql
+storage_size: 2Gi
+
+
+with_deploy: false
+with_validate_source: false
+with_validate_target: false
+
+src_storage_class: default
+pv_action: copy
+pv_copy_method: filesystem
+accessmode: ReadWriteOnce
+no_warnings_allowed: true

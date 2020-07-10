@@ -1,0 +1,18 @@
+int_app_name: internal-cronjob
+ext_app_name: external-cronjob
+
+internal_image_name: internal-alpine
+internal_image_tag: int
+external_image_name: docker.io/alpine
+
+with_deploy: false
+with_validate_source: false
+with_validate_target: false
+
+apis:
+  cronjob:
+    default: "batch/v1beta1"
+    "3.7": "batch/v2alpha1"
+
+cronjob_api: "{{ apis.cronjob.get(cluster_version, apis.cronjob.get('default')) }}"
+default_registry: "{{ 'docker-registry.default.svc:5000' if cluster_version is version('4.1', '<') else 'image-registry.openshift-image-registry.svc:5000' }}"

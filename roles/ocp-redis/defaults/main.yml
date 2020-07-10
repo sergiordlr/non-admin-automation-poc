@@ -1,0 +1,7 @@
+
+redis_password: "PASSWORD"
+redis_version: "latest"
+
+with_deploy: false
+with_validate_source: false
+with_validate_target: false

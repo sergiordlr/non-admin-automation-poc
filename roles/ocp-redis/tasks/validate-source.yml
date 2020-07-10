@@ -1,0 +1,38 @@
+- name: Check redis pod status
+  k8s_facts:
+    host: "{{ url }}"
+    api_key: "{{ token }}"
+    verify_ssl: no
+    kind: Pod
+    namespace: "{{ namespace }}"
+    label_selectors: "name=redis"
+    field_selectors: 
+    - status.phase=Running
+  register: pod
+  until: "true in (pod | json_query('resources[].status.containerStatuses[].ready'))"
+  retries: 60
+
+- name: Copy redis provision script to pod
+  shell: "{{ oc_binary }} --server {{ url }} --token {{ token }} -n {{ namespace }} cp {{ role_path }}/files/redis.cmds {{ (pod.resources|first).metadata.name }}:/tmp/redis.cmds"
+  register: result
+  delay: 10
+  retries: 12
+  until: result.rc == 0
+
+- name: Load data in redis
+  shell: "{{ oc_binary }} --server {{ url }} --token {{ token }} -n {{ namespace }} exec {{ (pod.resources|first).metadata.name }} -- /bin/bash -c \"redis-cli -a {{ redis_password }} < /tmp/redis.cmds\""
+  register: output
+  until: output.rc == 0 and output.stdout != ''
+  delay: 10
+  retries: 12
+
+- name: Retrieve and validate inserted data
+  shell: "{{ oc_binary }} --server {{ url }} --token {{ token }} -n {{ namespace }} exec {{ (pod.resources|first).metadata.name }} -- /bin/bash -c \"redis-cli -a {{ redis_password }} get mytestkey\""
+  register: output
+  until: output.rc == 0 and output.stdout != ''
+  delay: 10
+  retries: 12
+
+- fail:
+    msg: "Inserted data not present"
+  when: not (output.stdout is search("Hello world"))

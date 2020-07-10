@@ -4,7 +4,7 @@
 - hosts: all
   tasks:
   - set_fact:
-      namespace: ocp-32412-configmap
+      namespace: ocp-24997-configmap
 
 - name: Clean All
   hosts: all
