@@ -2,9 +2,6 @@ admin_cam_namespace: openshift-migration
 user_cam_namespace:  "{{ user }}-cam"
 role_name: use-migration-controller
 
-automation_helper_namespace: ft-automation
-automation_helper_sa_name: automation
-
 user: cam
 password: redhat
 # Name to create the identity provider if the user does not exist

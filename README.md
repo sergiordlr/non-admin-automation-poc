@@ -8,7 +8,15 @@ If you are using 3.x clusters in your CAM deployment, make sure to configure "al
 
 If you don't want to use "allowall" identity provider, then create the user in those 3.x clusters before running the automation.
 
-In 4.x clusters the automation can create the users with no problem.
+In 4.x clusters the automation can create the users with no problem. Just add a helper admin account to your 4.x source clusters. 
+
+```
+oc new-project automation-helper
+oc create sa automation
+oc adm policy add-cluster-role-to-user cluster-admin -z automation
+```
+
+The automation will read the migration-controller service account, get the helper service account and use it to perform tasks that need admin privileges in this cluster.
 
 ## Before Automation
 
